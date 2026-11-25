@@ -1,0 +1,42 @@
+{
+  "name": "tagvault",
+  "version": "1.0.0",
+  "private": true,
+  "description": "标签管家：本地文件/图片标签检索工具（完全离线，单文件 SQLite）",
+  "scripts": {
+    "dev": "vite",
+    "build:server": "tsc -p tsconfig.server.json && node -e \"require('fs').copyFileSync('server/schema.sql','dist-server/schema.sql')\"",
+    "build": "npm run build:server && vite build",
+    "start": "npm run build:server && node dist-server/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.app.json --noEmit"
+  },
+  "dependencies": {
+    "@tanstack/react-virtual": "^3.10.9",
+    "better-sqlite3": "^11.10.0",
+    "chokidar": "^3.6.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sharp": "^0.33.5",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.9.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/supertest": "^6.0.2",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "supertest": "^7.0.0",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.5"
+  }
+}

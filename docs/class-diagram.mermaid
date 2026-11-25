@@ -1,0 +1,200 @@
+classDiagram
+    direction LR
+
+    %% ===== 数据模型 =====
+    class Directory {
+        +number id
+        +string path
+        +string path_key
+        +string name
+        +number last_scanned_at
+        +number created_at
+    }
+    class FileRecord {
+        +number id
+        +number dir_id
+        +string path
+        +string name
+        +string ext
+        +string category
+        +number size
+        +number mtime
+        +boolean missing
+        +number created_at
+        +number updated_at
+    }
+    class TagType {
+        +number id
+        +string name
+        +string input_mode
+        +number sort_order
+        +boolean hidden_in_filter
+    }
+    class TagValue {
+        +number id
+        +number type_id
+        +string value
+        +number sort_order
+    }
+    class Tag {
+        +number id
+        +number file_id
+        +number type_id
+        +string value
+        +number created_at
+    }
+    class SearchFTS {
+        +string text
+        +string kind
+        +number ref_id
+    }
+
+    Directory "1" --> "0..*" FileRecord : 包含
+    TagType "1" --> "0..*" TagValue : 拥有字典值
+    TagType "1" --> "0..*" Tag : 定义类型
+    FileRecord "1" --> "0..*" Tag : 挂载标签
+    SearchFTS ..> FileRecord : 触发器同步
+    SearchFTS ..> Tag : 触发器同步
+
+    %% ===== 后端服务 =====
+    class App {
+        +start(port)
+        +serveStatic(dist)
+        +openBrowser()
+    }
+    class Database {
+        +connect(dbFile)
+        +initSchema()
+        +seedPresetTypes()
+    }
+    class EventBus {
+        +emitScanProgress(n, total)
+        +emitScanDone(dirId)
+        +emitFilesChanged()
+        +sseHandler()
+    }
+    class Scanner {
+        +scan(dirId)
+        +classify(ext) string
+        +upsertBatch(rows)
+        +markMissing()
+    }
+    class Watcher {
+        +watch(directories)
+        +onAdd(path)
+        +onUnlink(path)
+        +onChange(path)
+        +debounce(500ms)
+    }
+    class TagService {
+        +addTags(fileId, tags)
+        +removeTags(fileId, tags)
+        +batchAddRemove(fileIds, add, remove)
+        +quickAdd(fileId, raw)
+        +validateEnum(typeId, value)
+        +ensureUncategorized() TagType
+        +moveValue(valueId, targetType)
+    }
+    class SearchService {
+        +search(q, filters, opts) SearchResult
+        +facets() Facets
+        +suggest(q) Suggestions
+        +buildSQL(parsed) string
+    }
+    class QueryParser {
+        +parse(raw) ParsedQuery
+    }
+    class FolderPicker {
+        +pickFolder() string
+        +startHost() 常驻PowerShell
+        +comFallback() string
+    }
+    class ThumbnailService {
+        +get(fileId, v) Buffer
+        +cachePath(path, mtime) string
+    }
+    class Shell {
+        +openFile(path)
+        +revealInFolder(path)
+    }
+    class Transfer {
+        +exportJSON()
+        +exportCSV()
+        +importJSON(data) ImportResult
+    }
+
+    App --> Database : 初始化
+    App --> EventBus : SSE
+    App --> Scanner
+    App --> SearchService
+    App --> TagService
+    App --> FolderPicker
+    App --> ThumbnailService
+    App --> Shell
+    App --> Transfer
+    App --> Watcher
+    Scanner --> Database
+    Scanner --> EventBus : 进度
+    Watcher --> EventBus : 变更
+    Watcher --> Database : 同步
+    TagService --> Database
+    SearchService --> QueryParser
+    SearchService --> Database
+    ThumbnailService --> Database
+
+    %% ===== 前端 =====
+    class Store {
+        +string query
+        +FilterState filters
+        +SortState sort
+        +string viewMode
+        +number[] selectedIds
+        +fetchResults()
+        +clearAll()
+    }
+    class ApiClient {
+        +search(params)
+        +suggest(q)
+        +addTags(fileId, tags)
+        +pickFolder()
+        +export(format)
+    }
+    class TopBar {
+        +onQueryChange()
+        +renderChips()
+    }
+    class FilterPanel {
+        +renderGroups()
+        +toggleValue()
+    }
+    class FileTable {
+        +virtualScroll()
+    }
+    class ThumbGrid {
+        +lazyLoad()
+    }
+    class DetailPanel {
+        +renderPreview()
+        +renderTagsByType()
+    }
+    class QuickTagInput {
+        +onSuggestPick()
+        +onEnter()
+    }
+    class SettingsDialog {
+        +manageDirectories()
+        +manageTagTypes()
+        +importExport()
+        +cleanupMissing()
+    }
+
+    TopBar --> Store
+    FilterPanel --> Store
+    FileTable --> Store
+    ThumbGrid --> Store
+    DetailPanel --> Store
+    QuickTagInput --> ApiClient : suggest/addTags
+    DetailPanel --> ApiClient
+    SettingsDialog --> ApiClient
+    Store --> ApiClient : search
+    ApiClient ..> App : HTTP/SSE

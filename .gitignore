@@ -1,0 +1,21 @@
+# 依赖与构建产物
+node_modules/
+dist/
+dist-server/
+
+# 运行时生成（每台机器各自生成，不入库）
+config.json
+data/
+logs/
+*.log
+.running-port
+
+# 便携包与压缩包
+TagVault-portable/
+*.zip
+
+# 编辑器/系统
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

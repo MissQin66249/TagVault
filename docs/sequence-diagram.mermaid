@@ -1,0 +1,74 @@
+sequenceDiagram
+    autonumber
+    participant U as 用户
+    participant TB as TopBar/QuickTagInput(前端)
+    participant ST as Store(zustand)
+    participant API as ApiClient
+    participant EX as Express(server/index.ts)
+    participant SS as SearchService
+    participant QP as QueryParser
+    participant DB as SQLite(better-sqlite3)
+    participant FTS as search_fts(触发器)
+    participant SC as Scanner
+    participant TS as TagService
+    participant EB as EventBus(SSE)
+
+    rect rgb(235,245,255)
+    Note over U,FTS: 流程一：输入即搜（SR-1/2/8）
+    U->>TB: 键入 "保密级别:机密 蓝色"
+    TB->>ST: setQuery(raw)
+    Note over ST: useDebounce 150ms
+    ST->>API: GET /api/search?q=...&f=...&sort=...
+    API->>EX: HTTP GET
+    EX->>SS: search(q, filters, opts)
+    SS->>QP: parse(raw)
+    QP-->>SS: {keywords:["蓝色"], fieldFilters:[{保密级别,["机密"],OR}]}
+    SS->>DB: SQL: FTS MATCH/LIKE降级 + EXISTS(类型筛选链, AND) + 排序分页
+    DB-->>SS: {total, items[]}
+    SS-->>EX: SearchResult
+    EX-->>API: {code:0,data:{total,items}}
+    API-->>ST: 更新结果
+    ST-->>TB: 渲染列表 + 已选chips(字段条件只读)
+    end
+
+    rect rgb(240,255,240)
+    Note over U,FTS: 流程二：快速打标（TAG-3/4, TV-5）
+    U->>TB: 快速添加框输入 "海洋"
+    TB->>API: GET /api/suggest?q=海洋 (100ms防抖)
+    API->>EX: HTTP GET
+    EX->>SS: suggest(q)
+    SS->>DB: 前缀匹配 tag_values + tags 次数统计
+    DB-->>SS: [{值,类型名,次数}] (精确匹配置顶)
+    SS-->>API: 候选列表
+    API-->>TB: 显示 值+类型名+次数 下拉
+    U->>TB: 点选 "海洋生物·物料类型"（或无匹配回车）
+    TB->>API: POST /api/files/:id/tags 或 /api/tags/quick
+    API->>EX: HTTP POST
+    EX->>TS: addTags(fileId, tags)
+    TS->>DB: 校验(枚举白名单/长度≤100/幂等)；无类型→归入"未分类"
+    TS->>DB: INSERT OR IGNORE tags
+    DB->>FTS: tags_ai 触发器同步标签值进全文索引
+    TS-->>EX: 更新后标签列表
+    EX-->>API: {code:0,data:{tags}}
+    API-->>TB: 刷新详情面板 + 立即可搜
+    end
+
+    rect rgb(255,248,235)
+    Note over U,FTS: 流程三：添加索引目录与扫描（IDX-1~3）
+    U->>TB: 设置弹窗点击"📂 选择文件夹"
+    TB->>API: POST /api/system/pick-folder
+    API->>EX: HTTP POST
+    EX->>SC: FolderPicker.pickFolder()
+    Note over SC: 常驻PowerShell宿主(WinForms预热)→COM兜底
+    SC-->>EX: {path:"D:\\素材"}
+    EX-->>API: {code:0,data:{path}}
+    TB->>API: POST /api/directories {path}
+    API->>EX: 归一化判重(path_key)
+    EX->>SC: scan(dirId)
+    SC->>DB: 递归扫描→分批事务(500/批)upsert files
+    DB->>FTS: files_ai 触发器同步名称/路径
+    SC->>EB: emit scan-progress {scanned,total}
+    EB-->>TB: SSE: 扫描中 n/N 进度条
+    SC->>EB: emit scan-done
+    EB-->>TB: 刷新 facets 与结果列表
+    end
