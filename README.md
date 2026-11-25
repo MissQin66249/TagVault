@@ -1,6 +1,7 @@
 # 标签管家（TagVault）
 
 > 完全离线的本地文件/图片标签检索工具：给电脑里的文件打多维标签，像 Everything 一样「输入即搜」——文件本体一根毫毛都不动。
+> 纯AI开发~有bug鄙人只能力压AI
 
 [![Tests](https://img.shields.io/badge/tests-49%2F49-brightgreen)](#开发) [![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue)]() [![Offline](https://img.shields.io/badge/network-fully%20offline-red)]()
 
